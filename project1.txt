@@ -1,0 +1,332 @@
+echo " --------------------------------------------------------- "
+
+echo "           Welcome to Text Summarization Program           "
+
+#ReadFile function asks the user to enter the name of the file to read it
+
+ReadFile(){
+
+#While Loop To Check If The Read Operation Succeeded
+
+while true 
+
+do
+
+   echo " --------------------------------------------------------- "
+
+   echo " Enter the Text File Name That You Would Like To Summarize "
+
+   read filename
+
+ 
+   if [ ! -e "$filename" ]; then
+   
+     echo "          $filename does not Exist, Try Again!         "
+     echo " --------------------------------------------------------- "
+   
+     echo "      Would You Like To Try Another File? (y) or (n)      "
+     read flag
+   
+     if [ "$flag" = "y" ]; then
+     
+         continue
+   
+     else
+      
+         echo " --------------------------------------------------------- "
+     
+         echo "                Exiting From The Program!               "
+     
+        exit 1
+   
+     fi
+ 
+   else 
+   
+     if [ ! -f "$filename" ]; then 
+     
+        echo "     You Can't Read From $filename File, Try Aqain!    "
+        echo " --------------------------------------------------------- "
+     
+        echo "      Would You Like To Try Another File? (y) or (n)      "
+     
+        read flag
+       
+        if [ "$flag" = "y" ]; then
+         
+           continue
+       
+       else 
+         
+           echo " --------------------------------------------------------- "
+          
+           echo "                Exiting From The Program!               "
+         
+           exit 1
+       
+       fi   
+   
+     else
+     
+          echo " --------------------------------------------------------- "
+     
+          echo "           You Read from $filename Sueccfully           "
+     
+          echo " --------------------------------------------------------- "
+     
+          cat "$filename" > temp.txt
+     
+          break
+   
+     fi 
+ 
+  fi
+
+done
+
+}
+
+
+ReadFile
+
+
+#SplitPunc function Splits The Text File Based On (.!?) Punctuation Marks
+
+SplitPunc(){
+
+echo "          Text File After Splitting            "
+
+echo " --------------------------------------------------------- "
+
+cat temp.txt | tr '[.!?]' '\12' > Splitpunc.txt
+
+sed -i '/^$/d' Splitpunc.txt
+
+cat Splitpunc.txt
+
+mv Splitpunc.txt temp.txt
+
+echo " --------------------------------------------------------- "
+
+}
+
+
+
+#ToLower function Convert The Sentences To Small Letters 
+
+ToLower(){
+
+echo "          Text File After Converting To Lower Case           "
+
+echo " --------------------------------------------------------- "
+
+cat temp.txt | tr '[A-Z]' '[a-z]' > lowertemp.txt
+
+cat lowertemp.txt
+
+mv lowertemp.txt temp.txt
+
+echo " --------------------------------------------------------- "
+
+}
+
+
+
+#RemoveStopWords function Removes The Stop Words From The Sentences 
+
+RemoveStopWords(){
+
+echo "          Text File After Removing the Stop Words           "
+
+echo " --------------------------------------------------------- "
+
+sed -i 's/\<i\>//g; s/\<a\>//g; s/\<an\>//g; s/\<as\>//g; s/\<at\>//g; s/\<the\>//g; s/\<by\>//g; s/\<in\>//g; s/\<for\>//g; s/\<of\>//g; s/\<on\>//g; s/\<that\>//g' temp.txt
+
+cat temp.txt
+
+}
+
+
+
+#RmDuplication function Removes The Duplication Of Words From Each Sentence
+
+RmDuplication(){
+
+echo " --------------------------------------------------------- "
+
+echo "          Text File After Removing the Dupliction Of Words           "
+
+echo " --------------------------------------------------------- "
+
+while read line
+
+do 
+  
+    echo "$line" | tr ' ' '\12' > sent.txt #contains the sentence 
+  
+    cat -n sent.txt | sort -uk2 | sort -n | cut -f2- >> rmduplic.txt
+  
+    cat rmduplic.txt | tr '\12' ' ' >> tem.txt
+  
+    echo "" >> tem.txt
+  
+    rm rmduplic.txt 
+
+done < temp.txt  
+
+mv tem.txt first
+
+cat first
+
+}
+
+
+#Read The Summary Ratio From The User
+
+echo " --------------------------------------------------------- "
+
+echo "           Enter The Summary Ratio To Depends On           "
+
+read ratio
+
+
+echo "         The Summary Ratio To Depend On Is $ratio          "
+
+echo " --------------------------------------------------------- "
+
+
+Centrality(){
+
+numoflines=$(cat first | wc -l)
+
+#echo "num of Lines is: $numoflines"
+
+i=0
+
+while read line
+
+do 
+   
+    arr[$i]="$line"
+   
+    i=$((i+1))
+
+done < first
+
+for (( temp =0; temp < numoflines; temp++ ))
+
+do
+  
+     central[$temp]=0
+
+done
+
+for (( i = 0; i < numoflines; i++ ))
+ 
+do
+  
+   for (( j = $i+1; j < numoflines; j++))
+   
+      do
+    
+      centrality=0
+    
+      intersect=0
+    
+      echo "Comparing sentence: ${arr[$i]} with sentence: ${arr[$j]}"
+    
+      echo "${arr[$i]}" | tr ' ' '\n' > str1.txt #contains the first sentence 
+    
+      echo "${arr[$j]}" | tr ' ' '\n' > str2.txt #contatins the second sentence
+    
+      while read line
+      
+        do
+        
+          intersect=`expr $intersect + $(grep "$line" str2.txt | wc -l)`
+      
+        done < str1.txt
+     
+    
+      temp_union=`expr $(cat str1.txt | wc -w) + $(cat str2.txt | wc -w)`
+    
+      union=`expr $temp_union - $intersect`
+   
+    
+  
+      echo "intersect between them is $intersect"
+    
+      echo "union between them is $union"
+   
+ 
+  
+      similarity_degree=$( echo "scale=2;$intersect / $union" | bc -l) 
+    
+      echo "similarity degree is: $similarity_degree"   
+    
+      centrality=$( echo "scale=2;$centrality + $similarity_degree" | bc -l)
+    
+      central[$i]=$( echo "scale=2;$centrality + ${central[$i]}" | bc -l)
+    
+      central[$j]=$( echo "scale=2;$centrality + ${central[$j]}" | bc -l)
+    
+      echo " --------------------------------------------------------- "
+   
+   done    
+
+done
+
+
+echo "${central[@]}" > cent_not_sorted.txt
+
+cat cent_not_sorted.txt | tr ' ' '\n' | sort -nr | uniq  > cent_sorted.txt 
+
+
+
+#SORTING THE SENTENCES DEPENDING ON THEIR CENTRALITY DEGREE
+
+while read sorted
+
+  do
+ 
+    for (( index=0; index<numoflines; index++ )) 
+   
+      do
+     
+         if [ $sorted = ${central[$index]} ]; then
+        
+           echo "${arr[$index]}" >> final.txt
+      
+         fi
+   
+      done
+
+done < cent_sorted.txt
+
+mv final.txt done.txt
+
+top_ranked=$( echo "scale=2;$ratio * $numoflines" | bc -l)
+
+#int=${top_ranked%.*}
+
+top_ranked=$( printf "%.0f" $top_ranked )
+
+head -n $top_ranked done.txt > summary.txt
+
+echo " --------------------------------------------------------- "
+
+echo " The Summarized Text Is summary.txt with $top_ranked lines "
+
+}
+
+#ReadFile
+
+SplitPunc
+
+ToLower
+
+RemoveStopWords
+
+RmDuplication
+
+Centrality
